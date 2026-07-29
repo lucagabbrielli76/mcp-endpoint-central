@@ -2,7 +2,9 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { httpClient } from "../httpClient.js";
 import { loadConfig } from "../config.js";
+import { assertConfirmed } from "../errors.js";
 import { paginationNote, projectList, toToolResult } from "../shaping.js";
+import { READ_ONLY, WRITE, DESTRUCTIVE } from "./annotations.js";
 
 /**
  * Default projected fields for /api/1.4/som/computers records. The raw API
@@ -133,6 +135,45 @@ async function somComputersList(args: SomComputersListArgs) {
   return toToolResult({ total, page, limit, computers: shaped }, note);
 }
 
+interface SomSummaryResponse {
+  message_response: { summary: Record<string, unknown> };
+}
+
+interface SomRemoteOfficeResponse {
+  message_response: {
+    total?: number;
+    limit?: number;
+    page?: number;
+    remoteoffice: Record<string, unknown>[];
+  };
+}
+
+const REMOTE_OFFICE_FIELDS = [
+  "resource_id",
+  "resource_name",
+  "branch_office_name",
+  "computer_count",
+  "replication_status",
+  "remote_office_type",
+  "communication_type",
+  "ds_server_name",
+  "ds_ipaddress",
+] as const;
+
+const resourceIdsInput = {
+  resourceIds: z
+    .array(z.number().int().positive())
+    .min(1)
+    .max(100)
+    .describe("resource_id values of the target computers (from som_computers_list)."),
+  confirm: z
+    .boolean()
+    .optional()
+    .describe("Safety gate: must be explicitly set to true to perform this mutating action."),
+};
+
+type ResourceIdsArgs = { resourceIds: number[]; confirm?: boolean };
+
 export function registerSomTools(server: McpServer): void {
   server.registerTool(
     "som_computers_list",
@@ -142,7 +183,113 @@ export function registerSomTools(server: McpServer): void {
         "Retrieves managed computers from Endpoint Central (SoM) with hostname, IP, OS, agent install status, " +
         "live status, and branch office details. Supports filtering and pagination.",
       inputSchema: somComputersListInput,
+      annotations: READ_ONLY,
     },
     somComputersList
+  );
+
+  server.registerTool(
+    "som_summary",
+    {
+      title: "SoM summary",
+      description:
+        "Retrieves the Scope of Management summary: total computers, agent installation counts, and live status " +
+        "breakdown across the network.",
+      inputSchema: {},
+      annotations: READ_ONLY,
+    },
+    async () => {
+      const data = await httpClient.get<SomSummaryResponse>("/api/1.4/som/summary");
+      return toToolResult(data.message_response);
+    }
+  );
+
+  server.registerTool(
+    "som_remote_offices_list",
+    {
+      title: "List remote offices",
+      description:
+        "Retrieves all configured remote/branch offices with their replication status, communication type, and " +
+        "distribution server details.",
+      inputSchema: {
+        page: z.number().int().min(1).optional().describe("Page number to retrieve. Default is 1."),
+        pageLimit: z.number().int().min(1).max(1000).optional().describe("Max records per page (server cap is 1000)."),
+        raw: z.boolean().optional().describe("Return full unprojected records instead of the curated field set."),
+      },
+      annotations: READ_ONLY,
+    },
+    async (args: { page?: number; pageLimit?: number; raw?: boolean }) => {
+      const { defaultPageLimit } = loadConfig();
+      const data = await httpClient.get<SomRemoteOfficeResponse>("/api/1.4/som/remoteoffice", {
+        page: args.page,
+        pagelimit: args.pageLimit ?? defaultPageLimit,
+      });
+      const { total, limit, page, remoteoffice } = data.message_response;
+      const shaped = args.raw ? remoteoffice : projectList(remoteoffice ?? [], REMOTE_OFFICE_FIELDS);
+      return toToolResult(
+        { total, page, limit, remoteOffices: shaped },
+        paginationNote({ total, page, limit })
+      );
+    }
+  );
+
+  const { enableWriteTools } = loadConfig();
+  if (!enableWriteTools) return;
+
+  server.registerTool(
+    "som_agent_install",
+    {
+      title: "Install agent on computers",
+      description:
+        "Installs the Endpoint Central agent on the given computers (they must already be visible in SoM). " +
+        "Mutating action: requires confirm: true.",
+      inputSchema: resourceIdsInput,
+      annotations: WRITE,
+    },
+    async (args: ResourceIdsArgs) => {
+      assertConfirmed(args.confirm, "Installing the Endpoint Central agent");
+      const data = await httpClient.post<Record<string, unknown>>("/api/1.4/som/computers/installagent", {
+        resourceids: args.resourceIds,
+      });
+      return toToolResult(data);
+    }
+  );
+
+  server.registerTool(
+    "som_agent_uninstall",
+    {
+      title: "Uninstall agent from computers",
+      description:
+        "Uninstalls the Endpoint Central agent from the given computers. The computers stop being managed until " +
+        "an agent is reinstalled. Destructive action: requires confirm: true.",
+      inputSchema: resourceIdsInput,
+      annotations: DESTRUCTIVE,
+    },
+    async (args: ResourceIdsArgs) => {
+      assertConfirmed(args.confirm, "Uninstalling the Endpoint Central agent");
+      const data = await httpClient.post<Record<string, unknown>>("/api/1.4/som/computers/uninstallagent", {
+        resourceids: args.resourceIds,
+      });
+      return toToolResult(data);
+    }
+  );
+
+  server.registerTool(
+    "som_computer_remove",
+    {
+      title: "Remove computers from SoM",
+      description:
+        "Removes the given computers from Endpoint Central's Scope of Management entirely, deleting their " +
+        "management records. Destructive action: requires confirm: true.",
+      inputSchema: resourceIdsInput,
+      annotations: DESTRUCTIVE,
+    },
+    async (args: ResourceIdsArgs) => {
+      assertConfirmed(args.confirm, "Removing computers from the Scope of Management");
+      const data = await httpClient.post<Record<string, unknown>>("/api/1.4/som/computers/removecomputer", {
+        resourceids: args.resourceIds,
+      });
+      return toToolResult(data);
+    }
   );
 }

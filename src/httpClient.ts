@@ -60,11 +60,19 @@ export function assertSafePathSegment(value: string, label: string): void {
   }
 }
 
-async function request<T>(
-  method: string,
-  path: string,
-  opts: { query?: QueryParams; body?: unknown } = {}
-): Promise<T> {
+export interface RequestOptions {
+  query?: QueryParams;
+  body?: unknown;
+  /**
+   * Vendor media types for /dcapi endpoints (e.g.
+   * "application/allQueryReports.v1+json"). Tools pass these as string
+   * literals only; everything else defaults to plain JSON.
+   */
+  accept?: string;
+  contentType?: string;
+}
+
+async function request<T>(method: string, path: string, opts: RequestOptions = {}): Promise<T> {
   const { apiToken, baseUrl } = loadConfig();
   const url = buildUrl(path, opts.query);
 
@@ -75,8 +83,10 @@ async function request<T>(
       headers: {
         // On-prem Endpoint Central expects the raw token, not "Bearer <token>".
         Authorization: apiToken,
-        Accept: "application/json",
-        ...(opts.body !== undefined ? { "Content-Type": "application/json" } : {}),
+        Accept: opts.accept ?? "application/json",
+        ...(opts.body !== undefined
+          ? { "Content-Type": opts.contentType ?? "application/json" }
+          : {}),
       },
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
       dispatcher: getAgent(),
@@ -107,10 +117,12 @@ async function request<T>(
 }
 
 export const httpClient = {
-  get: <T>(path: string, query?: QueryParams) => request<T>("GET", path, { query }),
-  post: <T>(path: string, body?: unknown, query?: QueryParams) =>
-    request<T>("POST", path, { body, query }),
-  put: <T>(path: string, body?: unknown, query?: QueryParams) =>
-    request<T>("PUT", path, { body, query }),
-  delete: <T>(path: string, query?: QueryParams) => request<T>("DELETE", path, { query }),
+  get: <T>(path: string, query?: QueryParams, accept?: string) =>
+    request<T>("GET", path, { query, accept }),
+  post: <T>(path: string, body?: unknown, query?: QueryParams, accept?: string, contentType?: string) =>
+    request<T>("POST", path, { body, query, accept, contentType }),
+  put: <T>(path: string, body?: unknown, query?: QueryParams, accept?: string, contentType?: string) =>
+    request<T>("PUT", path, { body, query, accept, contentType }),
+  delete: <T>(path: string, query?: QueryParams, body?: unknown, contentType?: string) =>
+    request<T>("DELETE", path, { query, body, contentType }),
 };

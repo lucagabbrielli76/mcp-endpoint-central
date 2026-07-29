@@ -8,6 +8,13 @@ export interface Config {
   apiToken: string;
   caCert?: Buffer;
   defaultPageLimit: number;
+  /**
+   * Least-privilege default: mutating tools (patch install, agent uninstall,
+   * APD task changes, custom-field writes, ...) are not even registered unless
+   * ENDPOINT_CENTRAL_ENABLE_WRITE_TOOLS=true. A read-only deployment therefore
+   * exposes no write surface at all to the connected LLM client.
+   */
+  enableWriteTools: boolean;
 }
 
 function required(name: string): string {
@@ -31,6 +38,13 @@ function loadCaCert(path: string | undefined): Buffer | undefined {
   }
 }
 
+function loadBooleanFlag(name: string): boolean {
+  const raw = (process.env[name] ?? "").trim().toLowerCase();
+  if (raw === "" || raw === "false" || raw === "0" || raw === "no") return false;
+  if (raw === "true" || raw === "1" || raw === "yes") return true;
+  throw new Error(`${name} must be "true" or "false" (got "${process.env[name]}").`);
+}
+
 let cached: Config | undefined;
 
 export function loadConfig(): Config {
@@ -47,6 +61,8 @@ export function loadConfig(): Config {
     );
   }
 
-  cached = { baseUrl, apiToken, caCert, defaultPageLimit };
+  const enableWriteTools = loadBooleanFlag("ENDPOINT_CENTRAL_ENABLE_WRITE_TOOLS");
+
+  cached = { baseUrl, apiToken, caCert, defaultPageLimit, enableWriteTools };
   return cached;
 }

@@ -17,9 +17,8 @@ endpoint) lives at `spec/oas-dc.json`.
 
 TypeScript, `@modelcontextprotocol/sdk` (McpServer + StdioServerTransport),
 `zod` for input schemas, `undici` for HTTP (needed for custom-CA TLS support).
-Node >= 18. This environment uses nvm (`~/.nvm`) since no system Node exists;
-run `nvm use default` before any npm/node command if PATH doesn't already
-resolve them.
+Node >= 18. In this dev environment Node lives at `~/.local/bin/node` (no nvm,
+no system Node).
 
 ## Commands
 
@@ -31,6 +30,8 @@ npm run dev           # tsx src/index.ts (uses esbuild; its postinstall script
                        # was blocked by this environment's allow-scripts guard
                        # — if `npm run dev` fails, use `npm run build && npm start` instead)
 npm start              # node dist/index.js
+npm run test:smoke      # stdio smoke test, both modes, no real server needed —
+                        # run this after any tool/module change
 ```
 
 Config comes from env vars documented in `.env.example`. Copy it to `.env`
@@ -73,6 +74,17 @@ has no scope concept of its own.
   from `src/errors.ts` as the first line of the handler. Applies to patch
   install/uninstall/approve/decline, agent install/uninstall/remove, APD
   task create/modify/delete/suspend/resume, custom field delete/import, etc.
+- **Write gating**: mutating tools must only be registered when
+  `loadConfig().enableWriteTools` is true — put `const { enableWriteTools } =
+  loadConfig(); if (!enableWriteTools) return;` in the register function
+  *after* registering the module's read tools, then register write tools below
+  it (see `registerSomTools` in `src/tools/som.ts`). Read-only mode must
+  expose zero write surface.
+- **Annotations**: every tool passes one of the three shared constants from
+  `src/tools/annotations.ts` as `annotations`: `READ_ONLY` for all GET-backed
+  tools, `WRITE` for mutating-but-recoverable actions (trigger scan, approve
+  patch), `DESTRUCTIVE` for uninstall/remove/delete. Don't hand-roll
+  annotation objects.
 - **httpClient paths must be relative string literals only** — never pass a
   full URL or anything derived from tool input as the `path` argument
   (`buildUrl` in `src/httpClient.ts` throws if you do; this is a deliberate
@@ -86,33 +98,35 @@ has no scope concept of its own.
 
 ## Where things stand
 
-Phase 1 (scaffold) is done and verified: build/typecheck pass, and the
-server was smoke-tested end-to-end over actual MCP stdio JSON-RPC
-(`initialize` -> `tools/list` -> `tools/call`) with a fake token against both
-an unreachable host (clean error, no crash) and schema inspection (`tools/list`
-renders `som_computers_list`'s zod schema correctly). Only one tool exists so far:
-`som_computers_list` (`src/tools/som.ts`) — it's the reference implementation
-for every module below.
+**All planned modules are implemented: 107 tools across 11 modules** (84
+read-only, 23 write-gated behind `ENDPOINT_CENTRAL_ENABLE_WRITE_TOOLS`):
+`som`, `inventory`, `patch` (reads), `patchactions`, `threats`, `bitlocker`,
+`dcm`, `dlp`, `reports`, `customfields`, `dex` — all registered in
+`src/tools/index.ts`. Build/typecheck pass. Smoke-tested end-to-end over MCP
+stdio JSON-RPC in both modes: read-only exposes 84 tools and zero write
+surface; write mode exposes all 107, and the confirm gate fires before any
+network I/O. Verified no token leakage into error output. README.md documents
+setup for Claude Code/Desktop, config, the security model, and the full tool
+catalog.
 
-**Not yet started** — build in this order (see full rationale in conversation
-history / commit log, not duplicated here):
+Intentionally NOT implemented (multipart file uploads, incompatible with the
+JSON-only httpClient — noted in `src/tools/customfields.ts`):
+`PUT /dcapi/customFields/computers/{ID}/file`, `PUT /dcapi/customFields/values/file`,
+`POST /dcapi/customFields/computers/values/import`.
 
-1. Read-only core: rest of SoM (`summary`, install/uninstall/remove agent —
-   note remove/uninstall are mutating despite living in "SoM"), Inventory
-   (computers/hardware/software/licenses/metering), Patch reads (summary,
-   allpatches, allsystems, scandetails, deploymentpolicies, etc.), Reports
-   (query reports, custom reports, the dynamic `{crview}.ec` endpoint).
-2. Security/compliance reads: `dcapi/threats/*` (vulnerabilities,
-   misconfigurations), BitLocker, DLP/DCM reports.
-3. Mutating tools: patch install/uninstall/approve/decline, APD tasks, agent
-   install/uninstall/remove — all confirm-gated per the convention above.
-4. Custom fields/columns (`dcapi/customColumn`, `dcapi/customFields`) and DEX
-   (`intelligence/api/*`).
-5. Before/alongside all of the above: verify against the customer's actual
-   on-prem server via its own **Admin -> Integrations -> API Explorer** —
-   the downloaded spec may not have 1:1 parity with what their on-prem
-   build/license actually exposes (this still hasn't been done as of this
-   writing).
+**Remaining / next steps:**
+
+1. **Verify against the customer's actual on-prem server** via its
+   **Admin -> Integrations -> API Explorer** — the downloaded cloud spec may
+   not have 1:1 parity with what their on-prem build/license exposes (still
+   not done as of this writing). Highest-risk areas: vendor accept headers on
+   `/dcapi/*` endpoints, `threats_vulnerability_computers_detail` (spec says
+   GET-with-body; implemented as POST), `custom_column_remove` (DELETE with
+   JSON body), curated default field sets (derived from spec examples).
+2. Consider integration tests with a mocked Endpoint Central HTTP server
+   (the smoke test in-repo covers MCP plumbing, not response shaping).
+3. Optional: multipart support in httpClient if the file-upload/CSV-import
+   endpoints are ever needed.
 
 ## Quick gotchas already hit once
 
