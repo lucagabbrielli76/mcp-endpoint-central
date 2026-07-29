@@ -28,7 +28,12 @@ npm install          # installs deps and builds dist/ (via the prepare script)
 
 ### How to launch it: three options
 
-Every client config below uses `node /absolute/path/to/dist/index.js`. You can substitute either of the other forms — the tradeoffs are real, so pick deliberately:
+The MCP documentation uses two different launch styles depending on where a server comes from, and this server is the second kind:
+
+- [Connecting a **published** server](https://modelcontextprotocol.io/docs/develop/connect-local-servers) → `"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", …]`
+- [Building **your own** server](https://modelcontextprotocol.io/docs/develop/build-server) → `"command": "node", "args": ["/ABSOLUTE/PATH/TO/…/build/index.js"]`
+
+This server is deliberately unpublished (see the security note below), so the `node` + absolute path form is the documented match. npx still works via the `github:` form if you prefer it — the tradeoffs are real, so pick deliberately:
 
 | Launch command | Pros | Cons |
 |---|---|---|
@@ -42,7 +47,22 @@ If you do use npx, **pin to a commit** so a future push can't silently change wh
 npx -y github:hdyrawan/mcp-endpoint-central#f164fae
 ```
 
-Why the local path is the default recommendation here: this server holds a credential that — with write tools enabled — can deploy patches to every managed endpoint. Fetching and executing freshly-resolved code at each startup widens that blast radius for no operational gain on a single-host deployment. There is deliberately no published npm package, so `npx mcp-endpoint-central` resolves to nothing; only the explicit `github:` form works.
+Why unpublished, and why the local path is the default: this server holds a credential that — with write tools enabled — can deploy patches to every managed endpoint. Fetching and executing freshly-resolved code at each startup widens that blast radius for no operational gain on a single-host deployment. So there is deliberately no npm package: `npx mcp-endpoint-central` resolves to nothing, and only the explicit `github:` form works.
+
+#### If the server won't start: `spawn ENOENT` / "command not found"
+
+MCP clients launched from a desktop icon don't inherit your shell's `PATH`, so `node` or `npx` may not resolve even though they work in your terminal. This affects **whichever command you name** — it is not a reason to prefer one over the other. The fix is an absolute path to the binary:
+
+```bash
+which node   # e.g. /home/you/.local/bin/node
+which npx    # e.g. /home/you/.local/bin/npx
+```
+
+```json
+{ "command": "/home/you/.local/bin/node", "args": ["/abs/path/to/dist/index.js"] }
+```
+
+If you use [nvm](https://jonathanbossenger.com/2025/07/nvm-node-js-versions-and-mcp/), there's a second trap: `npx` can resolve to an older Node version than the one you tested with. Point at the binary inside the version you want (`~/.nvm/versions/node/v22.x.x/bin/…`). This server needs Node ≥ 18.
 
 ### Claude Code
 
@@ -402,6 +422,7 @@ Additional deployment recommendations:
 | Symptom | Likely cause / fix |
 |---|---|
 | Startup fails: `Missing required environment variable` | Set `ENDPOINT_CENTRAL_BASE_URL` / `ENDPOINT_CENTRAL_API_TOKEN` in the client's `env` block (stdio servers don't inherit your shell profile). |
+| Server never starts: `spawn ENOENT`, "command not found" | The client can't resolve `node`/`npx` from its `PATH` — use an absolute path to the binary (see [above](#if-the-server-wont-start-spawn-enoent--command-not-found)). |
 | `Could not reach Endpoint Central server` | Wrong base URL/port, firewall, or TLS failure. For internal CAs set `ENDPOINT_CENTRAL_CA_CERT_PATH`. |
 | `Authentication failed (401)` | Token invalid or revoked — regenerate under **Admin → Integrations → API Key Management**. |
 | `Access denied (403)` | The token's account lacks the RBAC role for that module — adjust in **Admin → User Administration**. |
