@@ -296,6 +296,52 @@ export function registerPatchActionTools(server: McpServer): void {
     }
   );
 
+  // ---- Patch database / binary downloads ---------------------------------
+
+  server.registerTool(
+    "patch_db_update",
+    {
+      title: "Update the patch database",
+      description:
+        "Initiates a patch database update on the Endpoint Central server, refreshing its catalog of known " +
+        "patches and vulnerabilities from ManageEngine. Check progress with patch_db_update_status. " +
+        "On-premise only. Mutating action: requires confirm: true.",
+      inputSchema: { confirm: confirmInput },
+      annotations: WRITE,
+    },
+    async (args: { confirm?: boolean }) => {
+      assertConfirmed(args.confirm, "Initiating a patch database update");
+      const data = await httpClient.post<Record<string, unknown>>("/api/1.4/patch/updatedb");
+      return toToolResult(data);
+    }
+  );
+
+  server.registerTool(
+    "patch_download",
+    {
+      title: "Download patches to the server",
+      description:
+        "Initiates download of the given patch binaries to the Endpoint Central server so they are staged for " +
+        "later deployment. This downloads for all computers and consumes server bandwidth and disk, but does " +
+        "not install anything. On-premise only. Mutating action: requires confirm: true.",
+      inputSchema: {
+        patchIds: z
+          .array(z.number().int().positive())
+          .min(1)
+          .describe("patch_id values of the patches to download (from patch_all_patches_list)."),
+        confirm: confirmInput,
+      },
+      annotations: WRITE,
+    },
+    async (args: { patchIds: number[]; confirm?: boolean }) => {
+      assertConfirmed(args.confirm, "Initiating a patch download on the server");
+      const data = await httpClient.post<Record<string, unknown>>("/api/1.4/patch/downloadpatch", {
+        patchids: args.patchIds,
+      });
+      return toToolResult(data);
+    }
+  );
+
   // ---- Install / uninstall patch configurations --------------------------
 
   server.registerTool(

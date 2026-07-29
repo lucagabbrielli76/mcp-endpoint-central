@@ -661,6 +661,34 @@ interface ViewConfigResponse {
 // Registration
 // ---------------------------------------------------------------------------
 
+/** Fields of /api/1.3/patch/apdTaskListdetails records. */
+const APD_TASK_FIELDS = [
+  "task_name",
+  "task_id",
+  "task_type",
+  "os_platform_name",
+  "os_platform_id",
+  "total_target",
+  "collection_id",
+  "collection_status",
+  "template_id",
+  "scheduler_class_id",
+  "first_name",
+  "user_id",
+  "task_creation_time",
+  "task_modified_time",
+  "remarks",
+] as const;
+
+interface ApdTaskListResponse {
+  message_response: {
+    total?: number;
+    limit?: number;
+    page?: number;
+    apdtasklistdetails?: Record<string, unknown>[];
+  };
+}
+
 export function registerPatchTools(server: McpServer): void {
   server.registerTool(
     "patch_summary",
@@ -985,6 +1013,32 @@ export function registerPatchTools(server: McpServer): void {
       const records = data.message_response.viewconfig ?? [];
       const shaped = args.raw ? records : projectList(records, VIEW_CONFIG_FIELDS);
       return toToolResult({ total, page, limit, configurations: shaped }, paginationNote({ total, page, limit }));
+    }
+  );
+
+  server.registerTool(
+    "patch_apd_tasks_list",
+    {
+      title: "List Automatic Patch Deployment tasks",
+      description:
+        "Retrieves all Automatic Patch Deployment (APD) tasks with their task name, ID, platform, target count, " +
+        "collection status, creator, and creation/modification times. Use this to discover the task_name values " +
+        "required by the APD suspend/resume/delete tools. On-premise only — this endpoint does not exist on " +
+        "Endpoint Central Cloud.",
+      inputSchema: { page: pageInput, pageLimit: pageLimitInput, raw: rawInput },
+      annotations: READ_ONLY,
+    },
+    async (args: { page?: number; pageLimit?: number; raw?: boolean }) => {
+      const { defaultPageLimit } = loadConfig();
+      // Note: this operation is served under API version 1.3, not 1.4.
+      const data = await httpClient.get<ApdTaskListResponse>("/api/1.3/patch/apdTaskListdetails", {
+        page: args.page,
+        pagelimit: args.pageLimit ?? defaultPageLimit,
+      });
+      const { total, limit, page } = data.message_response;
+      const records = data.message_response.apdtasklistdetails ?? [];
+      const shaped = args.raw ? records : projectList(records, APD_TASK_FIELDS);
+      return toToolResult({ total, page, limit, apdTasks: shaped }, paginationNote({ total, page, limit }));
     }
   );
 }

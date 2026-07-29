@@ -186,19 +186,19 @@ If your Endpoint Central server uses a certificate from an internal CA, export t
 
 ## Tool catalog
 
-**107 tools** across 11 modules: 84 read-only (always registered) and 23 mutating (registered only when `ENDPOINT_CENTRAL_ENABLE_WRITE_TOOLS=true`). Legend: 🔍 read-only · ✏️ mutating · 🗑️ destructive.
+**113 tools** across 11 modules: 86 read-only (always registered) and 27 mutating (registered only when `ENDPOINT_CENTRAL_ENABLE_WRITE_TOOLS=true`). Legend: 🔍 read-only · ✏️ mutating · 🗑️ destructive.
 
 | Module | Tools | Covers |
 |---|---|---|
 | Scope of Management | 6 | Managed computers, SoM summary, remote offices; agent install/uninstall, computer removal |
-| Inventory | 17 | Hardware, software, licenses, prohibited software, software metering, scan status |
-| Patch management (read) | 13 | Patch/system status, scan details, deployment policies & configs, approval settings, DB update status |
-| Patch management (actions) | 14 | Approve/decline, scans, install/uninstall configurations, APD task lifecycle |
+| Inventory | 19 | Hardware, software, licenses, prohibited software, software metering, scan status; scan triggers |
+| Patch management (read) | 14 | Patch/system status, scan details, deployment policies & configs, approval settings, APD task list, DB update status |
+| Patch management (actions) | 16 | Approve/decline, scans, install/uninstall configurations, patch downloads, DB update, APD task lifecycle |
 | Threats & vulnerabilities | 10 | CVEs, vulnerability-to-computer mapping, system/web-server misconfigurations, per-system reports |
 | BitLocker | 3 | Encryption reports, recovery keys, TPM details |
 | Device control (DCM) | 9 | Device/block audits, per-computer device status, exemptions, file trace & shadow |
 | Data loss prevention (DLP) | 11 | Endpoint activity, justifications, false positives, deployed rules/devices/domains/printers |
-| Reports & groups | 6 | Query reports (+data), custom reports (+data), custom groups, server properties |
+| Reports & groups | 7 | Query reports (+data), custom reports (+data), custom groups, server properties, auth discovery |
 | Custom fields | 11 | Custom column/data-type management, per-computer custom field reads & updates |
 | Digital Employee Experience | 7 | DEX scores per device/profile, metric breakdowns, score generation times |
 
@@ -227,6 +227,7 @@ If your Endpoint Central server uses a certificate from an internal CA, export t
 - 🔍 `inventory_scan_computers_list` — per-computer inventory scan status
 - 🔍 `inventory_software_metering_summary` — metering rules with usage metrics
 - 🔍 `inventory_computers_by_software` / `_by_hardware` / `_with_metering` / `_by_licensed_software` / `_by_license` / `_by_prohibited_software` — computers matching a specific inventory entity
+- ✏️ `inventory_scan_computers` / `inventory_scan_all_computers` — trigger an asset scan (write-gated)
 
 </details>
 
@@ -241,6 +242,7 @@ If your Endpoint Central server uses a certificate from an internal CA, export t
 - 🔍 `patch_deployment_policies_list` / `patch_view_config` — deployment templates and configurations
 - 🔍 `patch_downloaded_patches_list` / `patch_supported_patches_list` — downloaded binaries, supported catalog
 - 🔍 `patch_approval_settings` / `patch_health_policy` / `patch_db_update_status` — module settings and DB refresh status
+- 🔍 `patch_apd_tasks_list` — Automatic Patch Deployment tasks (source of the `task_name` the APD action tools need)
 
 </details>
 
@@ -251,6 +253,8 @@ If your Endpoint Central server uses a certificate from an internal CA, export t
 - ✏️ `patch_scan_computers` / `patch_scan_all_computers` — trigger patch scans
 - ✏️ `patch_install_on_all_systems` / `patch_install_on_specific_systems` / `patch_install_all_missing_on_systems` — create/deploy install configurations
 - 🗑️ `patch_uninstall` — deploy an uninstall-patch configuration
+- ✏️ `patch_download` — stage patch binaries on the server without installing them
+- ✏️ `patch_db_update` — refresh the server's patch/vulnerability catalog
 - ✏️ `apd_task_create` / `apd_task_modify` / `apd_task_suspend` / `apd_task_resume` — Automatic Patch Deployment task lifecycle
 - 🗑️ `apd_task_delete` — permanently delete an APD task
 
@@ -304,6 +308,7 @@ If your Endpoint Central server uses a certificate from an internal CA, export t
 - 🔍 `reports_custom_reports_list` / `reports_custom_report_data` — custom report views and their rows
 - 🔍 `customgroup_list` — custom groups with type and member counts
 - 🔍 `server_properties` — domains, custom groups, and branch offices managed by the server
+- 🔍 `server_discover` — login configuration: AD domains enabled, default domain, local-auth-only flag. The one endpoint needing no authentication, so it still answers when your token is wrong.
 
 </details>
 
@@ -330,7 +335,11 @@ If your Endpoint Central server uses a certificate from an internal CA, export t
 
 </details>
 
-> **On-prem parity note:** the tool surface follows ManageEngine's published API reference. Individual endpoints can vary by on-prem build and license; verify anything critical against your own server's **Admin → Integrations → API Explorer**.
+> **On-prem parity.** Most of this surface is confirmed against ManageEngine's [on-premise API reference](https://www.manageengine.com/products/desktop-central/api/): SoM, Inventory, Patch, Threats/Vulnerability, BitLocker, Device Control, DLP, and server properties/discovery all appear there.
+>
+> Four groups are **not** in the on-prem reference and were built from the broader published spec — treat them as unverified until you check your own server's **Admin → Integrations → API Explorer**: **DEX** (`/intelligence/api/*`), **custom fields/columns** (`/dcapi/customColumn`, `/dcapi/customFields`), **query & custom reports** (`/dcapi/reports/*`), and **custom groups** (`/api/1.4/customgroup/getCGList`). Absence from the docs isn't proof of absence from your build — ManageEngine states the published list is partial — but these are where a 404 is most likely.
+>
+> Conversely, several tools here are **on-premise only** and have no cloud equivalent: `patch_apd_tasks_list`, `patch_db_update`, `patch_download`. Mobile Device Management has its own on-prem API that this server does not cover yet.
 
 ## Working with results
 

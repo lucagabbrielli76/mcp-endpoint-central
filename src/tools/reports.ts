@@ -171,6 +171,18 @@ const CUSTOM_GROUP_FIELDS = [
   "group_modified_on",
 ] as const;
 
+interface DiscoverResponse {
+  message_response?: {
+    discover?: {
+      login_data?: {
+        is_local_authentication_only?: boolean;
+        domain_list?: string[];
+        default_domain?: string;
+      };
+    };
+  };
+}
+
 interface ServerPropertiesResponse {
   message_response?: {
     serverproperties?: {
@@ -347,6 +359,24 @@ export function registerReportsTools(server: McpServer): void {
     async () => {
       const data = await httpClient.get<ServerPropertiesResponse>("/api/1.4/desktop/serverproperties");
       return toToolResult(data.message_response ?? {});
+    }
+  );
+
+  server.registerTool(
+    "server_discover",
+    {
+      title: "Discover server authentication settings",
+      description:
+        "Retrieves the Endpoint Central server's login configuration: whether it accepts local authentication " +
+        "only, which Active Directory domains are enabled for authentication, and the default domain. Useful " +
+        "for confirming connectivity and identifying the AD domain a service account belongs to. This is the " +
+        "one endpoint that requires no authentication, so it also succeeds when the API token is invalid.",
+      inputSchema: {},
+      annotations: READ_ONLY,
+    },
+    async () => {
+      const data = await httpClient.get<DiscoverResponse>("/api/1.4/desktop/discover");
+      return toToolResult(data.message_response?.discover ?? data.message_response ?? {});
     }
   );
 }

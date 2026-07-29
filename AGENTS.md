@@ -9,9 +9,28 @@ Central (on-premise)** REST API as tools for LLM agents. The customer runs
 Endpoint Central self-hosted, not the cloud SaaS product — this repo targets
 on-prem auth and behavior specifically; do not assume Zoho OAuth2 applies.
 
-The full OpenAPI spec (110 operations, downloaded from ManageEngine's cloud
-docs — closest available reference, on-prem parity not guaranteed for every
-endpoint) lives at `spec/oas-dc.json`.
+Two references, and it matters which one you trust for what:
+
+1. `spec/oas-dc.json` — the full OpenAPI spec (110 operations), downloaded from
+   ManageEngine's **cloud** docs. Machine-readable, so it's the best source for
+   exact param names, request bodies, and response field sets — but it is NOT
+   authoritative about what exists on-prem.
+2. The **on-premise HTML API reference**, authoritative for on-prem existence:
+   - https://www.manageengine.com/products/desktop-central/api/ (SoM, Inventory,
+     Common, BitLocker, Device Control, DLP)
+   - https://www.manageengine.com/patch-management/api/ (all Patch + APD)
+   - https://www.manageengine.com/vulnerability-management/api/ (Threats)
+   - https://www.manageengine.com/mobile-device-management/api/ (MDM — not
+     implemented here yet)
+
+   The sidebar of each is generated from `js/tree_nodes.js` on that same path —
+   fetch that file to get the complete endpoint index in one request, rather
+   than crawling pages.
+
+Endpoints marked "Not Applicable for Cloud version" in the on-prem docs are
+absent from `oas-dc.json` by definition; that's how the six on-prem-only
+endpoints were originally missed (see history). When adding tools, cross-check
+both sources.
 
 ## Stack
 
@@ -98,8 +117,8 @@ has no scope concept of its own.
 
 ## Where things stand
 
-**All planned modules are implemented: 107 tools across 11 modules** (84
-read-only, 23 write-gated behind `ENDPOINT_CENTRAL_ENABLE_WRITE_TOOLS`):
+**All planned modules are implemented: 113 tools across 11 modules** (86
+read-only, 27 write-gated behind `ENDPOINT_CENTRAL_ENABLE_WRITE_TOOLS`):
 `som`, `inventory`, `patch` (reads), `patchactions`, `threats`, `bitlocker`,
 `dcm`, `dlp`, `reports`, `customfields`, `dex` — all registered in
 `src/tools/index.ts`. Build/typecheck pass. Smoke-tested end-to-end over MCP
@@ -117,15 +136,26 @@ JSON-only httpClient — noted in `src/tools/customfields.ts`):
 **Remaining / next steps:**
 
 1. **Verify against the customer's actual on-prem server** via its
-   **Admin -> Integrations -> API Explorer** — the downloaded cloud spec may
-   not have 1:1 parity with what their on-prem build/license exposes (still
-   not done as of this writing). Highest-risk areas: vendor accept headers on
-   `/dcapi/*` endpoints, `threats_vulnerability_computers_detail` (spec says
-   GET-with-body; implemented as POST), `custom_column_remove` (DELETE with
-   JSON body), curated default field sets (derived from spec examples).
-2. Consider integration tests with a mocked Endpoint Central HTTP server
+   **Admin -> Integrations -> API Explorer** (still not done as of this
+   writing). A desk-check against ManageEngine's on-prem HTML reference has
+   been done and is reflected above; what remains is live verification.
+   Highest-risk areas, in order:
+   - **Four module groups absent from the on-prem reference**, built from the
+     cloud spec: DEX (`/intelligence/api/*`), custom fields/columns
+     (`/dcapi/customColumn`, `/dcapi/customFields`), query/custom reports
+     (`/dcapi/reports/*`), custom groups (`/api/1.4/customgroup/getCGList`).
+     Most likely to 404. (Absence from docs isn't proof — ManageEngine says
+     the published list is partial.)
+   - Vendor accept headers on `/dcapi/*` endpoints.
+   - `threats_vulnerability_computers_detail` (spec says GET-with-body;
+     implemented as POST).
+   - `custom_column_remove` (DELETE with JSON body).
+   - Curated default field sets (derived from spec examples).
+2. **Mobile Device Management** has its own documented on-prem API and is not
+   covered at all — the obvious next module if the customer wants it.
+3. Consider integration tests with a mocked Endpoint Central HTTP server
    (the smoke test in-repo covers MCP plumbing, not response shaping).
-3. Optional: multipart support in httpClient if the file-upload/CSV-import
+4. Optional: multipart support in httpClient if the file-upload/CSV-import
    endpoints are ever needed.
 
 ## Quick gotchas already hit once

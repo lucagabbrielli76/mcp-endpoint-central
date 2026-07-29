@@ -2,11 +2,13 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { httpClient, type QueryParams } from "../httpClient.js";
 import { loadConfig } from "../config.js";
+import { assertConfirmed } from "../errors.js";
 import { paginationNote, projectList, toToolResult } from "../shaping.js";
-import { READ_ONLY } from "./annotations.js";
+import { READ_ONLY, WRITE } from "./annotations.js";
 
 /**
- * Inventory module (/api/1.4/inventory/*) — all read-only.
+ * Inventory module (/api/1.4/inventory/*) — reads, plus two write-gated
+ * scan-trigger actions registered at the end of registerInventoryTools.
  *
  * Note on the six "computers" tools: the spec lists the path six times
  * ("computers?api1" ... "computers?api6" — an OpenAPI dedup suffix, not a
@@ -1079,6 +1081,57 @@ export function registerInventoryTools(server: McpServer): void {
         { total, page, limit, meteringSummary: shaped },
         paginationNote({ total, page, limit })
       );
+    }
+  );
+
+  const { enableWriteTools } = loadConfig();
+  if (!enableWriteTools) return;
+
+  const confirmInput = z
+    .boolean()
+    .optional()
+    .describe("Safety gate: must be explicitly set to true to perform this mutating action.");
+
+  server.registerTool(
+    "inventory_scan_computers",
+    {
+      title: "Scan specific computers for inventory",
+      description:
+        "Triggers an asset/inventory scan on the given computers, refreshing their hardware and software " +
+        "records. Mutating action: requires confirm: true.",
+      inputSchema: {
+        resourceIds: z
+          .array(z.number().int().positive())
+          .min(1)
+          .max(100)
+          .describe("resource_id values of the computers to scan (from som_computers_list)."),
+        confirm: confirmInput,
+      },
+      annotations: WRITE,
+    },
+    async (args: { resourceIds: number[]; confirm?: boolean }) => {
+      assertConfirmed(args.confirm, "Initiating an inventory scan on specific computers");
+      const data = await httpClient.post<Record<string, unknown>>("/api/1.4/inventory/computers/scan", {
+        resourceids: args.resourceIds,
+      });
+      return toToolResult(data);
+    }
+  );
+
+  server.registerTool(
+    "inventory_scan_all_computers",
+    {
+      title: "Scan all computers for inventory",
+      description:
+        "Triggers an asset/inventory scan on every computer managed by the Endpoint Central server. This " +
+        "queues scan activity network-wide. Mutating action: requires confirm: true.",
+      inputSchema: { confirm: confirmInput },
+      annotations: WRITE,
+    },
+    async (args: { confirm?: boolean }) => {
+      assertConfirmed(args.confirm, "Initiating an inventory scan on all managed computers");
+      const data = await httpClient.post<Record<string, unknown>>("/api/1.4/inventory/computers/scanall");
+      return toToolResult(data);
     }
   );
 }
