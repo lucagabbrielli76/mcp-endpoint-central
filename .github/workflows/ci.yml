@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ["18.x", "20.x", "22.x"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      # `npm ci` runs the prepare script, which builds dist/.
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Drives the built server over real MCP stdio against an unreachable
+      # host. Asserts the security invariants: read-only mode exposes zero
+      # write tools, every tool carries annotations, the confirm gate fires
+      # before any network I/O, and the API token never reaches output.
+      - name: Smoke test (read-only and write modes)
+        run: npm run test:smoke

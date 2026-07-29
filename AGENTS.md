@@ -5,9 +5,9 @@ Instructions for any coding agent (Claude Code, Codex, etc.) picking up this rep
 ## What this is
 
 An MCP (Model Context Protocol) server exposing the **ManageEngine Endpoint
-Central (on-premise)** REST API as tools for LLM agents. The customer runs
-Endpoint Central self-hosted, not the cloud SaaS product — this repo targets
-on-prem auth and behavior specifically; do not assume Zoho OAuth2 applies.
+Central (on-premise)** REST API as tools for LLM agents. This targets the
+self-hosted product, not the cloud SaaS one — on-prem auth and behavior
+specifically; do not assume Zoho OAuth2 applies.
 
 Two references, and it matters which one you trust for what:
 
@@ -135,7 +135,7 @@ JSON-only httpClient — noted in `src/tools/customfields.ts`):
 
 **Remaining / next steps:**
 
-1. **Verify against the customer's actual on-prem server** via its
+1. **Verify against a real on-prem server** via its
    **Admin -> Integrations -> API Explorer** (still not done as of this
    writing). A desk-check against ManageEngine's on-prem HTML reference has
    been done and is reflected above; what remains is live verification.
@@ -152,7 +152,7 @@ JSON-only httpClient — noted in `src/tools/customfields.ts`):
    - `custom_column_remove` (DELETE with JSON body).
    - Curated default field sets (derived from spec examples).
 2. **Mobile Device Management** has its own documented on-prem API and is not
-   covered at all — the obvious next module if the customer wants it.
+   covered at all — the obvious next module to add.
 3. Consider integration tests with a mocked Endpoint Central HTTP server
    (the smoke test in-repo covers MCP plumbing, not response shaping).
 4. Optional: multipart support in httpClient if the file-upload/CSV-import

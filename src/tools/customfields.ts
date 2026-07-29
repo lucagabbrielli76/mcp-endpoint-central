@@ -21,7 +21,7 @@ import { READ_ONLY, WRITE, DESTRUCTIVE } from "./annotations.js";
  * The /dcapi endpoints use vendor media types (e.g.
  * "application/customColumnDetails.v1+json"), passed per call below via
  * httpClient's accept/contentType options. On-prem parity for these endpoints
- * should still be verified against the customer's API Explorer.
+ * should still be verified against your server's API Explorer.
  */
 
 const TABLE_NAME_VALUES = [

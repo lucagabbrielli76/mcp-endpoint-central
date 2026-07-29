@@ -2,15 +2,42 @@
 // by driving the real MCP server over stdio, exactly as an MCP client would.
 //
 // Usage:
-//   node --env-file=.env scripts/check-connection.mjs
+//   npm run check
 //   ENDPOINT_CENTRAL_BASE_URL=... ENDPOINT_CENTRAL_API_TOKEN=... node scripts/check-connection.mjs
 //
 // Never prints the API token.
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 
-const serverPath = resolve(dirname(fileURLToPath(import.meta.url)), "../dist/index.js");
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const serverPath = resolve(root, "dist/index.js");
+
+/**
+ * Load .env without node's --env-file, which needs Node >= 20.6 while this
+ * project supports 18. Real environment variables always win.
+ */
+function loadDotEnv() {
+  let raw;
+  try {
+    raw = readFileSync(resolve(root, ".env"), "utf8");
+  } catch {
+    return;
+  }
+  for (const line of raw.split("\n")) {
+    const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
+    if (!m || line.trimStart().startsWith("#")) continue;
+    const key = m[1];
+    let value = m[2].trim().replace(/\s+#.*$/, "");
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
+}
+
+loadDotEnv();
 
 const missing = ["ENDPOINT_CENTRAL_BASE_URL", "ENDPOINT_CENTRAL_API_TOKEN"].filter(
   (k) => !process.env[k]?.trim()

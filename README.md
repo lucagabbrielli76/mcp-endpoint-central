@@ -487,3 +487,9 @@ spec/oas-dc.json    # OpenAPI reference for the Endpoint Central API
 ```
 
 Contributions should follow the conventions in [AGENTS.md](AGENTS.md) — notably: response shaping for every list tool, `assertConfirmed` + write-gating for every mutating tool, and relative-literal API paths only.
+
+CI runs typecheck plus the smoke test on Node 18, 20, and 22 for every push and pull request.
+
+---
+
+*This is an independent, unofficial integration. ManageEngine, Endpoint Central, and related marks are trademarks of Zoho Corporation, which does not endorse, sponsor, or support this project. Product names are used only to identify the API this server talks to.*

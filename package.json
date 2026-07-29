@@ -2,6 +2,24 @@
   "name": "mcp-endpoint-central",
   "version": "0.1.0",
   "description": "MCP server for ManageEngine Endpoint Central (on-premise) REST API",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "endpoint-central",
+    "manageengine",
+    "patch-management",
+    "vulnerability-management",
+    "itsm"
+  ],
+  "author": "hdyrawan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hdyrawan/mcp-endpoint-central.git"
+  },
+  "homepage": "https://github.com/hdyrawan/mcp-endpoint-central#readme",
+  "bugs": {
+    "url": "https://github.com/hdyrawan/mcp-endpoint-central/issues"
+  },
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -19,7 +37,7 @@
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:smoke": "node scripts/smoke-test.mjs && node scripts/smoke-test.mjs --write",
-    "check": "node --env-file=.env scripts/check-connection.mjs"
+    "check": "node scripts/check-connection.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
