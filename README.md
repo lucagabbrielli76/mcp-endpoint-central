@@ -20,51 +20,27 @@ An [MCP](https://modelcontextprotocol.io) (Model Context Protocol) server for **
 
 ## Quick start
 
+Four steps, about five minutes.
+
+### 1. Install
+
 ```bash
 git clone https://github.com/hdyrawan/mcp-endpoint-central.git
 cd mcp-endpoint-central
-npm install          # installs deps and builds dist/ (via the prepare script)
+npm install
 ```
 
-### How to launch it: three options
+`npm install` also builds the server, so there's no separate build step.
 
-The MCP documentation uses two different launch styles depending on where a server comes from, and this server is the second kind:
+### 2. Get an API token
 
-- [Connecting a **published** server](https://modelcontextprotocol.io/docs/develop/connect-local-servers) → `"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", …]`
-- [Building **your own** server](https://modelcontextprotocol.io/docs/develop/build-server) → `"command": "node", "args": ["/ABSOLUTE/PATH/TO/…/build/index.js"]`
+In the Endpoint Central console, go to **Admin → Integrations → API Key Management** and generate a key. Copy it somewhere safe.
 
-This server is deliberately unpublished (see the security note below), so the `node` + absolute path form is the documented match. npx still works via the `github:` form if you prefer it — the tradeoffs are real, so pick deliberately:
+Using Active Directory with MFA? That works fine — you complete MFA once here in the browser, and the key works headlessly from then on. See [Generating the API token](#generating-the-api-token) for the details and for choosing which account the key belongs to.
 
-| Launch command | Pros | Cons |
-|---|---|---|
-| `node /abs/path/dist/index.js` **(recommended)** | Runs exactly the code you cloned, built, and reviewed. No network at startup, fastest launch. | Absolute path in config; you update with `git pull`. |
-| `mcp-endpoint-central` (after `npm link` or `npm i -g .`) | Clean command, no paths. Same locally-built code. | One extra setup step; still a local checkout to update. |
-| `npx -y github:hdyrawan/mcp-endpoint-central` | No checkout to manage; familiar MCP idiom. | Fetches + compiles at cold start (can exceed a client's connection timeout), needs git access to the private repo, and runs whatever is at branch tip unless you pin. |
+### 3. Add it to your MCP client
 
-If you do use npx, **pin to a commit** so a future push can't silently change what runs with your API token:
-
-```
-npx -y github:hdyrawan/mcp-endpoint-central#f164fae
-```
-
-Why unpublished, and why the local path is the default: this server holds a credential that — with write tools enabled — can deploy patches to every managed endpoint. Fetching and executing freshly-resolved code at each startup widens that blast radius for no operational gain on a single-host deployment. So there is deliberately no npm package: `npx mcp-endpoint-central` resolves to nothing, and only the explicit `github:` form works.
-
-#### If the server won't start: `spawn ENOENT` / "command not found"
-
-MCP clients launched from a desktop icon don't inherit your shell's `PATH`, so `node` or `npx` may not resolve even though they work in your terminal. This affects **whichever command you name** — it is not a reason to prefer one over the other. The fix is an absolute path to the binary:
-
-```bash
-which node   # e.g. /home/you/.local/bin/node
-which npx    # e.g. /home/you/.local/bin/npx
-```
-
-```json
-{ "command": "/home/you/.local/bin/node", "args": ["/abs/path/to/dist/index.js"] }
-```
-
-If you use [nvm](https://jonathanbossenger.com/2025/07/nvm-node-js-versions-and-mcp/), there's a second trap: `npx` can resolve to an older Node version than the one you tested with. Point at the binary inside the version you want (`~/.nvm/versions/node/v22.x.x/bin/…`). This server needs Node ≥ 18.
-
-### Claude Code
+Use the absolute path to `dist/index.js` in this folder — run `pwd` to get it.
 
 ```bash
 claude mcp add endpoint-central \
@@ -72,6 +48,23 @@ claude mcp add endpoint-central \
   --env ENDPOINT_CENTRAL_API_TOKEN=YOUR_TOKEN \
   -- node /absolute/path/to/mcp-endpoint-central/dist/index.js
 ```
+
+That's Claude Code. For **Claude Desktop, Codex CLI, OpenCode, or Hermes Agent**, see [client setup](#client-setup) below — same idea, different config file.
+
+### 4. Verify
+
+```bash
+cp .env.example .env    # fill in the same base URL + token
+npm run check
+```
+
+This confirms the server is reachable and your token works, and tells you exactly what to fix if not. You're done — the server starts in read-only mode with 86 tools and no write access.
+
+> **Want to use `npx` instead?** It works: `npx -y github:hdyrawan/mcp-endpoint-central`. It's slower to start and has a couple of caveats — see [alternative launch methods](#alternative-launch-methods).
+
+## Client setup
+
+Claude Code is covered in the [quick start](#3-add-it-to-your-mcp-client) above. Every client needs the same three things: the command `node`, the absolute path to `dist/index.js`, and the two environment variables.
 
 ### Claude Desktop
 
@@ -147,6 +140,34 @@ Hermes deliberately does not pass your shell environment to MCP subprocesses —
 
 The server speaks MCP over stdio. Point your client at `node dist/index.js` with the environment variables below.
 
+### Alternative launch methods
+
+<details>
+<summary>Using <code>npx</code>, a global command, or a pinned commit — and why the absolute path is the default</summary>
+
+The MCP docs use two launch styles depending on where a server comes from:
+
+- [Connecting a **published** server](https://modelcontextprotocol.io/docs/develop/connect-local-servers) → `"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", …]`
+- [Building **your own** server](https://modelcontextprotocol.io/docs/develop/build-server) → `"command": "node", "args": ["/ABSOLUTE/PATH/TO/…/build/index.js"]`
+
+This server is the second kind and is deliberately unpublished, so `node` + absolute path is the documented match. All three of these work:
+
+| Launch command | Start time | Notes |
+|---|---|---|
+| `node /abs/path/dist/index.js` **(default)** | 0.3s | Runs exactly the code you cloned and built. No network at startup. Update with `git pull`. |
+| `mcp-endpoint-central` (after `npm link`) | 0.3s | Same code, no paths in your config. One extra setup step. |
+| `npx -y github:hdyrawan/mcp-endpoint-central` | 7s | No checkout to manage. Recompiles and re-resolves the git ref on every launch, needs git access to the private repo, and follows branch tip unless pinned. |
+
+To pin npx to a specific commit, so a later push can't change what runs with your API token:
+
+```
+npx -y github:hdyrawan/mcp-endpoint-central#f164fae
+```
+
+**Why there's no npm package:** this server holds a credential that, with write tools enabled, can deploy patches to every managed endpoint. Fetching and executing freshly-resolved code at each startup widens that blast radius for no gain on a single-host deployment. So `npx mcp-endpoint-central` resolves to nothing — only the explicit `github:` form works.
+
+</details>
+
 ### Local development run
 
 ```bash
@@ -207,14 +228,9 @@ Consequences worth planning for:
 - **AD password rotation.** The key is stored separately from the AD password, but this isn't documented by ManageEngine either way. Test it after your first rotation, and keep `npm run check` handy for a 5-second verdict.
 - **Revocation.** To kill access instantly, regenerate the key in the console (or disable the account). Then update `ENDPOINT_CENTRAL_API_TOKEN` wherever it's configured.
 
-### Verify your configuration
+### What `npm run check` tells you
 
-```bash
-cp .env.example .env    # fill in base URL + token
-npm run check           # reads .env, starts the server, calls a real endpoint
-```
-
-`npm run check` runs two probes and reports exactly where a setup breaks:
+It runs two probes and reports exactly where a setup breaks:
 
 1. An **unauthenticated** probe (`server_discover`) — isolates network/TLS problems from credential problems, and prints how your console authenticates (AD enabled, which domains, the default domain).
 2. An **authenticated** call — proves the API token itself works.
@@ -422,12 +438,26 @@ Additional deployment recommendations:
 | Symptom | Likely cause / fix |
 |---|---|
 | Startup fails: `Missing required environment variable` | Set `ENDPOINT_CENTRAL_BASE_URL` / `ENDPOINT_CENTRAL_API_TOKEN` in the client's `env` block (stdio servers don't inherit your shell profile). |
-| Server never starts: `spawn ENOENT`, "command not found" | The client can't resolve `node`/`npx` from its `PATH` — use an absolute path to the binary (see [above](#if-the-server-wont-start-spawn-enoent--command-not-found)). |
+| Server never starts: `spawn ENOENT`, "command not found" | The client can't resolve `node`/`npx` from its `PATH` — see [below](#command-not-found-or-spawn-enoent). |
 | `Could not reach Endpoint Central server` | Wrong base URL/port, firewall, or TLS failure. For internal CAs set `ENDPOINT_CENTRAL_CA_CERT_PATH`. |
 | `Authentication failed (401)` | Token invalid or revoked — regenerate under **Admin → Integrations → API Key Management**. |
 | `Access denied (403)` | The token's account lacks the RBAC role for that module — adjust in **Admin → User Administration**. |
 | A tool from the docs is missing | Write tools require `ENDPOINT_CENTRAL_ENABLE_WRITE_TOOLS=true`. Also, on-prem builds/licenses vary — verify the endpoint exists in your console under **Admin → Integrations → API Explorer**. |
 | Mutating call returns "requires confirm: true" | Working as intended — repeat the call with `confirm: true` once you're sure. |
+
+### Command not found or spawn ENOENT
+
+MCP clients launched from a desktop icon don't inherit your shell's `PATH`, so `node` or `npx` may not resolve even though they work in your terminal. This affects whichever command you name, so it isn't a reason to prefer one over the other. Use an absolute path to the binary:
+
+```bash
+which node   # e.g. /home/you/.local/bin/node
+```
+
+```json
+{ "command": "/home/you/.local/bin/node", "args": ["/abs/path/to/dist/index.js"] }
+```
+
+If you use [nvm](https://jonathanbossenger.com/2025/07/nvm-node-js-versions-and-mcp/), there's a second trap: `npx` can resolve to an older Node than the one you tested with. Point at the binary inside the version you want (`~/.nvm/versions/node/v22.x.x/bin/…`). This server needs Node ≥ 18.
 
 ## Development
 
