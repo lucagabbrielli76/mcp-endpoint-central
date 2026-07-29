@@ -17,7 +17,8 @@ export class EndpointCentralApiError extends Error {
     if (status === 401) {
       return (
         `Authentication failed calling ${endpoint} (401). ` +
-        `The API token is missing, invalid, or has been revoked. ` +
+        `The API token is missing, invalid, expired, or has been superseded by a newer key ` +
+        `(regenerating a key invalidates the previous one; deleting its user invalidates it too). ` +
         `Regenerate it in the Endpoint Central console under Admin -> Integrations -> API Key Management ` +
         `and update ENDPOINT_CENTRAL_API_TOKEN. Response: ${bodyText}`
       );

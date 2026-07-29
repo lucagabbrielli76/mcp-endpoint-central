@@ -12,7 +12,8 @@
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:smoke": "node scripts/smoke-test.mjs && node scripts/smoke-test.mjs --write"
+    "test:smoke": "node scripts/smoke-test.mjs && node scripts/smoke-test.mjs --write",
+    "check": "node --env-file=.env scripts/check-connection.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

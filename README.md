@@ -139,12 +139,46 @@ All configuration is via environment variables (see `.env.example` for the comme
 | `ENDPOINT_CENTRAL_DEFAULT_PAGE_LIMIT` | no | `50` | Default page size for list tools (server hard cap: 1000). |
 | `ENDPOINT_CENTRAL_ENABLE_WRITE_TOOLS` | no | `false` | Set `true` to register mutating tools. Leave unset for a read-only deployment. |
 
-### Generating the API token (least privilege)
+### Generating the API token
 
-1. In the Endpoint Central console, create a **dedicated service account** for this integration — do not reuse an admin login.
-2. Give it the least-privileged role that covers what you need (a read-only/auditor role for the default read-only deployment). The on-prem API has **no OAuth scopes**; the token's power is exactly the RBAC role of its account, so the account's role *is* your permission boundary.
-3. Generate the token under **Admin → Integrations → API Key Management** while logged in as that account.
-4. Rotate/revoke from the same screen. Tokens do not expire on their own.
+Endpoint Central on-prem offers two ways to authenticate to its API. **This server uses the static API key**, which is the only one that works unattended:
+
+| | Static API key | Login API (`/api/1.4/desktop/authentication`) |
+|---|---|---|
+| How you get it | Generated in the console, once | POST username + base64 password each time |
+| With MFA enabled | You complete MFA **once**, in the browser, when generating the key | Every login needs a fresh OTP via `.../otpValidate` |
+| Suitable for a headless MCP server | ✅ Yes | ❌ No — a human must read the OTP each time |
+| Credentials at rest | One revocable key | Your AD account password |
+
+Steps:
+
+1. Decide which account the key belongs to. The key inherits that account's RBAC role — the on-prem API has **no scopes of its own**, so the account's role *is* the entire permission boundary. Prefer a dedicated service account over a person's day-to-day login, and the least-privileged role that still covers the modules you need. (Note: generating an API key requires administrator privilege in the console, so verify with your Endpoint Central admin which roles are available to you.)
+2. Log in to the console as that account and complete MFA normally.
+3. Go to **Admin → Integrations → API Key Management**, generate the key, and **copy it immediately** — it is typically shown only once. If the form offers an expiry date, note it; the key stops working that day.
+4. Put it in `ENDPOINT_CENTRAL_API_TOKEN` and verify with `npm run check` (see below).
+
+A key is invalidated by: regenerating it (the previous key dies immediately), deleting the user it belongs to, or reaching its expiry date if you set one.
+
+### Active Directory + MFA deployments
+
+If your console uses **AD authentication with MFA (email OTP, authenticator app, or similar)**, nothing changes for this server — that's the point of the static key. You authenticate interactively **once** (AD password + OTP) in the browser to generate the key; from then on the key is a self-contained credential and the MCP server never performs an interactive login, never sees your AD password, and never needs an OTP.
+
+Consequences worth planning for:
+
+- **Do not** try to feed AD credentials to this server. It has no username/password mode by design: storing a domain password in an MCP client's config would be a worse credential than a scoped, revocable key, and email OTP would break the flow on every restart anyway.
+- **Service account vs. personal account.** A key tied to a person dies when their account is deleted or disabled — including when they leave. Ask your Endpoint Central admin for a dedicated service account where policy allows.
+- **AD password rotation.** The key is stored separately from the AD password, but this isn't documented by ManageEngine either way. Test it after your first rotation, and keep `npm run check` handy for a 5-second verdict.
+- **Revocation.** To kill access instantly, regenerate the key in the console (or disable the account). Then update `ENDPOINT_CENTRAL_API_TOKEN` wherever it's configured.
+
+### Verify your configuration
+
+```bash
+cp .env.example .env    # fill in base URL + token
+npm run build
+npm run check           # reads .env, starts the server, calls a real endpoint
+```
+
+`npm run check` reports exactly where a setup breaks — unreachable host, TLS trust failure, 401 (bad/expired/superseded key), or 403 (valid key, insufficient role) — each with the specific fix. It never prints your token.
 
 ### TLS with an internal CA
 
