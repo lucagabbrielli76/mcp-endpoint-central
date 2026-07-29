@@ -161,7 +161,7 @@ This server is the second kind and is deliberately unpublished, so `node` + abso
 To pin npx to a specific commit, so a later push can't change what runs with your API token:
 
 ```
-npx -y github:hdyrawan/mcp-endpoint-central#f164fae
+npx -y github:hdyrawan/mcp-endpoint-central#a27ce7a
 ```
 
 **Why there's no npm package:** this server holds a credential that, with write tools enabled, can deploy patches to every managed endpoint. Fetching and executing freshly-resolved code at each startup widens that blast radius for no gain on a single-host deployment. So `npx mcp-endpoint-central` resolves to nothing — only the explicit `github:` form works.
@@ -483,12 +483,18 @@ src/
   tools/
     annotations.ts  # shared READ_ONLY / WRITE / DESTRUCTIVE annotations
     som.ts …        # one module per API area, registered in tools/index.ts
-spec/oas-dc.json    # OpenAPI reference for the Endpoint Central API
+spec/oas-dc.json    # OpenAPI reference — not committed, see AGENTS.md
 ```
 
 Contributions should follow the conventions in [AGENTS.md](AGENTS.md) — notably: response shaping for every list tool, `assertConfirmed` + write-gating for every mutating tool, and relative-literal API paths only.
 
 CI runs typecheck plus the smoke test on Node 18, 20, and 22 for every push and pull request.
+
+The OpenAPI spec used as a development reference is **not** included in this repo — it is ManageEngine's proprietary document. See [AGENTS.md](AGENTS.md) for how to obtain it; nothing in the build or test suite requires it.
+
+## License
+
+[MIT](LICENSE) © hdyrawan
 
 ---
 

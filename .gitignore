@@ -2,3 +2,7 @@ node_modules/
 dist/
 .env
 *.log
+
+# Vendor API spec: ManageEngine proprietary, kept locally for development
+# but never committed. See AGENTS.md for how to obtain it.
+spec/

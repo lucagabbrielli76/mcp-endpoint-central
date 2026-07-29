@@ -12,6 +12,7 @@
     "itsm"
   ],
   "author": "hdyrawan",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hdyrawan/mcp-endpoint-central.git"
@@ -28,6 +29,7 @@
   "files": [
     "dist",
     "README.md",
+    "LICENSE",
     ".env.example"
   ],
   "scripts": {

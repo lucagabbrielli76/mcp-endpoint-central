@@ -11,10 +11,17 @@ specifically; do not assume Zoho OAuth2 applies.
 
 Two references, and it matters which one you trust for what:
 
-1. `spec/oas-dc.json` — the full OpenAPI spec (110 operations), downloaded from
+1. `spec/oas-dc.json` — the full OpenAPI spec (110 operations), from
    ManageEngine's **cloud** docs. Machine-readable, so it's the best source for
    exact param names, request bodies, and response field sets — but it is NOT
    authoritative about what exists on-prem.
+
+   **Not committed to this repo** (`spec/` is gitignored): it is ManageEngine's
+   proprietary document, so redistributing it here would be a copyright
+   problem. Download it yourself from their API documentation, or export it
+   from your own server's **Admin -> Integrations -> API Explorer**, and drop
+   it at `spec/oas-dc.json`. Everything below assumes you've done that; the
+   repo builds and runs fine without it.
 2. The **on-premise HTML API reference**, authoritative for on-prem existence:
    - https://www.manageengine.com/products/desktop-central/api/ (SoM, Inventory,
      Common, BitLocker, Device Control, DLP)
