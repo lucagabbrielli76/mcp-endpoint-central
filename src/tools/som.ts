@@ -43,7 +43,7 @@ const LIVE_STATUS_VALUES = [1, 2, 3] as const;
 const PLATFORM_VALUES = ["0", "1", "2", "3"] as const;
 
 const somComputersListInput = {
-  page: z.number().int().min(1).max(1000).optional().describe("Page number to retrieve. Default is 1."),
+  page: z.number().int().min(1).optional().describe("Page number to retrieve. Default is 1."),
   pageLimit: z
     .number()
     .int()

@@ -50,7 +50,6 @@ const pageField = z
   .number()
   .int()
   .min(1)
-  .max(1000)
   .optional()
   .describe("Page number to retrieve. Default is 1.");
 
