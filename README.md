@@ -21,11 +21,28 @@ An [MCP](https://modelcontextprotocol.io) (Model Context Protocol) server for **
 ## Quick start
 
 ```bash
-git clone <this-repo>
+git clone https://github.com/hdyrawan/mcp-endpoint-central.git
 cd mcp-endpoint-central
-npm install
-npm run build
+npm install          # installs deps and builds dist/ (via the prepare script)
 ```
+
+### How to launch it: three options
+
+Every client config below uses `node /absolute/path/to/dist/index.js`. You can substitute either of the other forms — the tradeoffs are real, so pick deliberately:
+
+| Launch command | Pros | Cons |
+|---|---|---|
+| `node /abs/path/dist/index.js` **(recommended)** | Runs exactly the code you cloned, built, and reviewed. No network at startup, fastest launch. | Absolute path in config; you update with `git pull`. |
+| `mcp-endpoint-central` (after `npm link` or `npm i -g .`) | Clean command, no paths. Same locally-built code. | One extra setup step; still a local checkout to update. |
+| `npx -y github:hdyrawan/mcp-endpoint-central` | No checkout to manage; familiar MCP idiom. | Fetches + compiles at cold start (can exceed a client's connection timeout), needs git access to the private repo, and runs whatever is at branch tip unless you pin. |
+
+If you do use npx, **pin to a commit** so a future push can't silently change what runs with your API token:
+
+```
+npx -y github:hdyrawan/mcp-endpoint-central#f164fae
+```
+
+Why the local path is the default recommendation here: this server holds a credential that — with write tools enabled — can deploy patches to every managed endpoint. Fetching and executing freshly-resolved code at each startup widens that blast radius for no operational gain on a single-host deployment. There is deliberately no published npm package, so `npx mcp-endpoint-central` resolves to nothing; only the explicit `github:` form works.
 
 ### Claude Code
 
@@ -174,7 +191,6 @@ Consequences worth planning for:
 
 ```bash
 cp .env.example .env    # fill in base URL + token
-npm run build
 npm run check           # reads .env, starts the server, calls a real endpoint
 ```
 
@@ -396,7 +412,7 @@ Additional deployment recommendations:
 
 ```bash
 npm run typecheck   # tsc --noEmit
-npm run build       # tsc -> dist/
+npm run build       # tsc -> dist/ (also runs automatically on npm install)
 npm run dev         # tsx src/index.ts
 npm run test:smoke  # stdio smoke test in both modes (no real server needed):
                     # verifies read-only mode exposes zero write tools, all tools
