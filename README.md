@@ -154,7 +154,7 @@ Steps:
 
 1. Decide which account the key belongs to. The key inherits that account's RBAC role — the on-prem API has **no scopes of its own**, so the account's role *is* the entire permission boundary. Prefer a dedicated service account over a person's day-to-day login, and the least-privileged role that still covers the modules you need. (Note: generating an API key requires administrator privilege in the console, so verify with your Endpoint Central admin which roles are available to you.)
 2. Log in to the console as that account and complete MFA normally.
-3. Go to **Admin → Integrations → API Key Management**, generate the key, and **copy it immediately** — it is typically shown only once. If the form offers an expiry date, note it; the key stops working that day.
+3. Go to **Admin → Integrations → API Key Management**, generate the key, and copy it straight into your secret store. If the form offers an expiry date, note it — the key stops working that day.
 4. Put it in `ENDPOINT_CENTRAL_API_TOKEN` and verify with `npm run check` (see below).
 
 A key is invalidated by: regenerating it (the previous key dies immediately), deleting the user it belongs to, or reaching its expiry date if you set one.
