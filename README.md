@@ -178,7 +178,19 @@ npm run build
 npm run check           # reads .env, starts the server, calls a real endpoint
 ```
 
-`npm run check` reports exactly where a setup breaks — unreachable host, TLS trust failure, 401 (bad/expired/superseded key), or 403 (valid key, insufficient role) — each with the specific fix. It never prints your token.
+`npm run check` runs two probes and reports exactly where a setup breaks:
+
+1. An **unauthenticated** probe (`server_discover`) — isolates network/TLS problems from credential problems, and prints how your console authenticates (AD enabled, which domains, the default domain).
+2. An **authenticated** call — proves the API token itself works.
+
+Because step 1 runs first, a failure at step 2 is unambiguous: the server is reachable and it's the key that's wrong. Diagnoses unreachable host, TLS trust failure, 401 (bad/expired/superseded key) and 403 (valid key, insufficient role) separately, each with the specific fix. It never prints your token.
+
+```
+✓ MCP server started — 86 tools registered
+✓ Reached the Endpoint Central server (unauthenticated probe)
+  Console auth: Active Directory enabled | AD domains: CORP, SUBSIDIARY | default: CORP
+✓ Reached Endpoint Central and authenticated successfully
+```
 
 ### TLS with an internal CA
 

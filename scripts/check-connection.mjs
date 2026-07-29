@@ -85,6 +85,37 @@ try {
   const tools = await rpc("tools/list", {});
   console.log(`✓ MCP server started — ${tools.result.tools.length} tools registered`);
 
+  // Step 1: server_discover needs no auth, so it isolates reachability/TLS
+  // from credential problems and reports how the console authenticates.
+  const discover = await rpc("tools/call", { name: "server_discover", arguments: {} });
+  const discoverText = discover.result?.content?.[0]?.text ?? "";
+  if (discover.result?.isError) {
+    if (/Could not reach/.test(discoverText)) {
+      const tls = /certificate|self-signed|SELF_SIGNED|UNABLE_TO_VERIFY|altname|CERT/i.test(discoverText);
+      fail("Could not reach the Endpoint Central server.", [
+        tls
+          ? "This looks like a TLS trust failure — export your internal CA (PEM) and set ENDPOINT_CENTRAL_CA_CERT_PATH."
+          : "Check ENDPOINT_CENTRAL_BASE_URL (scheme, host, port — on-prem defaults to 8383) and firewall rules.",
+        `Raw error: ${discoverText.slice(0, 300)}`,
+      ]);
+    }
+    console.log("• Reachability probe (server_discover) did not answer; continuing to the authenticated check.");
+  } else {
+    console.log("✓ Reached the Endpoint Central server (unauthenticated probe)");
+    try {
+      const login = JSON.parse(discoverText).login_data ?? {};
+      const domains = login.domain_list?.length ? login.domain_list.join(", ") : "none";
+      console.log(
+        `  Console auth: ${login.is_local_authentication_only ? "local accounts only" : "Active Directory enabled"}` +
+          ` | AD domains: ${domains}` +
+          (login.default_domain ? ` | default: ${login.default_domain}` : "")
+      );
+    } catch {
+      /* shape varies by build; the probe succeeding is the signal that matters */
+    }
+  }
+
+  // Step 2: an authenticated call proves the API token itself works.
   const call = await rpc("tools/call", { name: "som_summary", arguments: {} });
   const text = call.result?.content?.[0]?.text ?? "";
 
@@ -104,6 +135,7 @@ try {
       "A key is invalidated by regenerating it, or by deleting the user it belongs to.",
       "If the key was created with an expiry date, check whether that date has passed.",
       "Confirm you copied the whole key, with no leading/trailing whitespace.",
+      "MFA is not the problem here: the key is a standalone credential, so no OTP is involved at this step.",
     ]);
   } else if (/\(403\)/.test(text)) {
     fail("Access denied (403) — the token is valid but lacks permission for this module.", [
