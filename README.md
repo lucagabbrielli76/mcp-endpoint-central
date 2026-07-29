@@ -55,6 +55,57 @@ Add to `claude_desktop_config.json` (Settings → Developer → Edit Config):
 }
 ```
 
+### Codex CLI
+
+Add to `~/.codex/config.toml` (or use `codex mcp add`), then verify with `/mcp` in a session:
+
+```toml
+[mcp_servers.endpoint-central]
+command = "node"
+args = ["/absolute/path/to/mcp-endpoint-central/dist/index.js"]
+
+[mcp_servers.endpoint-central.env]
+ENDPOINT_CENTRAL_BASE_URL = "https://ec-server.corp.example:8383"
+ENDPOINT_CENTRAL_API_TOKEN = "YOUR_TOKEN"
+```
+
+### OpenCode
+
+Add to `opencode.json` in your project root (or globally in `~/.config/opencode/opencode.json`). Note OpenCode wants one `command` array and the key `environment`, not `env`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "endpoint-central": {
+      "type": "local",
+      "command": ["node", "/absolute/path/to/mcp-endpoint-central/dist/index.js"],
+      "enabled": true,
+      "environment": {
+        "ENDPOINT_CENTRAL_BASE_URL": "https://ec-server.corp.example:8383",
+        "ENDPOINT_CENTRAL_API_TOKEN": "YOUR_TOKEN"
+      }
+    }
+  }
+}
+```
+
+### Hermes Agent
+
+Add to `~/.hermes/config.yaml`, then restart Hermes or run `/reload-mcp` in an active session:
+
+```yaml
+mcp_servers:
+  endpoint-central:
+    command: "node"
+    args: ["/absolute/path/to/mcp-endpoint-central/dist/index.js"]
+    env:
+      ENDPOINT_CENTRAL_BASE_URL: "https://ec-server.corp.example:8383"
+      ENDPOINT_CENTRAL_API_TOKEN: "YOUR_TOKEN"
+```
+
+Hermes deliberately does not pass your shell environment to MCP subprocesses — only its safe baseline plus what you put in `env`. So every `ENDPOINT_CENTRAL_*` variable you need (including `ENDPOINT_CENTRAL_CA_CERT_PATH` or `ENDPOINT_CENTRAL_ENABLE_WRITE_TOOLS` if you use them) must be listed explicitly in this block.
+
 ### Any other MCP client
 
 The server speaks MCP over stdio. Point your client at `node dist/index.js` with the environment variables below.
