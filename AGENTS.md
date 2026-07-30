@@ -73,9 +73,13 @@ Static API token generated in the Endpoint Central console under
 `Authorization: <token>` header (not `Bearer`, not `Zoho-oauthtoken`). No
 OAuth flow, no refresh, no expiry beyond manual revocation. See
 `src/httpClient.ts` and `.env.example` for details. Recommend the token come
-from a dedicated least-privileged service account, not an admin login —
-on-prem access is governed by that account's RBAC role, since the API itself
-has no scope concept of its own.
+from a dedicated least-privileged service account, not an admin login.
+Access is governed by that account's RBAC role; some on-prem builds also
+offer per-key scoping (per-module CRUD) on the API Key Management screen
+itself — see
+https://www.manageengine.com/products/desktop-central/help/api-key-mgmt-scope.html.
+Either way the account's role is the outer bound, so don't assume "no
+scopes" without checking the key-creation screen on the target build.
 
 ## Architecture conventions — follow these for every new tool
 
@@ -129,8 +133,8 @@ read-only, 27 write-gated behind `ENDPOINT_CENTRAL_ENABLE_WRITE_TOOLS`):
 `som`, `inventory`, `patch` (reads), `patchactions`, `threats`, `bitlocker`,
 `dcm`, `dlp`, `reports`, `customfields`, `dex` — all registered in
 `src/tools/index.ts`. Build/typecheck pass. Smoke-tested end-to-end over MCP
-stdio JSON-RPC in both modes: read-only exposes 84 tools and zero write
-surface; write mode exposes all 107, and the confirm gate fires before any
+stdio JSON-RPC in both modes: read-only exposes 86 tools and zero write
+surface; write mode exposes all 113, and the confirm gate fires before any
 network I/O. Verified no token leakage into error output. README.md documents
 setup for Claude Code/Desktop, config, the security model, and the full tool
 catalog.
@@ -142,17 +146,22 @@ JSON-only httpClient — noted in `src/tools/customfields.ts`):
 
 **Remaining / next steps:**
 
-1. **Verify against a real on-prem server** via its
-   **Admin -> Integrations -> API Explorer** (still not done as of this
-   writing). A desk-check against ManageEngine's on-prem HTML reference has
-   been done and is reflected above; what remains is live verification.
-   Highest-risk areas, in order:
-   - **Four module groups absent from the on-prem reference**, built from the
-     cloud spec: DEX (`/intelligence/api/*`), custom fields/columns
-     (`/dcapi/customColumn`, `/dcapi/customFields`), query/custom reports
-     (`/dcapi/reports/*`), custom groups (`/api/1.4/customgroup/getCGList`).
-     Most likely to 404. (Absence from docs isn't proof — ManageEngine says
-     the published list is partial.)
+1. **Verify against a real on-prem server.** Partially done: manual testing
+   against a live on-prem deployment confirmed `som_summary`,
+   `som_remote_offices_list`, `inventory_all_summary`, `patch_summary`,
+   `dcm_device_summary_list`, `reports_custom_reports_list`, and the write
+   path (`inventory_scan_computers` with `confirm: true`, gated behind
+   `ENDPOINT_CENTRAL_ENABLE_WRITE_TOOLS`) all round-trip correctly — no 404s,
+   pagination notes match the documented format, and the confirm/write gates
+   behaved as designed end-to-end (not just in the simulated smoke test).
+   That covers SoM, Inventory, Patch, Device Control, and Reports. Still
+   unverified, in order of risk:
+   - **DEX** (`/intelligence/api/*`) and **DLP** (`/api/1.4/reports/dlp/*`) —
+     neither appears in the on-prem HTML reference *or* the API Key
+     Management scope list (see the auth-model note above), so it's unclear
+     whether they're gated by a scope this server doesn't know about.
+   - **Custom fields/columns** (`/dcapi/customColumn`, `/dcapi/customFields`)
+     and **BitLocker** — same "no named scope found" gap.
    - Vendor accept headers on `/dcapi/*` endpoints.
    - `threats_vulnerability_computers_detail` (spec says GET-with-body;
      implemented as POST).
