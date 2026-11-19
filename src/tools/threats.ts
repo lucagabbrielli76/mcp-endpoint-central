@@ -770,8 +770,9 @@ export function registerThreatsTools(server: McpServer): void {
       annotations: READ_ONLY,
     },
     async (args: ThreatsPatchesListArgs) => {
-      const { defaultPageLimit } = loadConfig();
+      const { defaultPageLimit, customerId } = loadConfig();
       const data = await httpClient.get<ThreatsPatchesResponse>("/dcapi/threats/patches", {
+		customerid: customerId,
         page: args.page,
         pageLimit: args.pageLimit ?? defaultPageLimit,
         patchid: args.patchId,
@@ -921,9 +922,12 @@ export function registerThreatsTools(server: McpServer): void {
       annotations: READ_ONLY,
     },
     async (args: SystemReportPatchesArgs) => {
-      const data = await httpClient.get<SystemReportResponse>("/dcapi/threats/systemreport/patches", {
-        page: args.page,
-        pageLimit: args.pageLimit ?? systemReportDefaultLimit(),
+  const { customerId } = loadConfig();
+
+  const data = await httpClient.get<SystemReportResponse>("/dcapi/threats/systemreport/patches", {
+    customerid: customerId,
+    page: args.page,
+    pageLimit: args.pageLimit ?? systemReportDefaultLimit(),
         resource_id: args.resourceId,
         severity: args.severity,
         patchname: args.patchName,
