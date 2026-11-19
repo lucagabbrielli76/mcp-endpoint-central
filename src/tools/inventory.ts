@@ -406,9 +406,10 @@ async function inventoryComputersList(
   fields: readonly string[],
   args: PagedArgs
 ) {
-  const { defaultPageLimit } = loadConfig();
+  const { defaultPageLimit, customerId } = loadConfig();
 
   const data = await httpClient.get<InventoryComputersResponse>("/api/1.4/inventory/computers", {
+	  customerid: customerId,
     ...drivingQuery,
     page: args.page,
     pagelimit: args.pageLimit ?? defaultPageLimit,
@@ -437,9 +438,15 @@ export function registerInventoryTools(server: McpServer): void {
       annotations: READ_ONLY,
     },
     async () => {
-      const data = await httpClient.get<InventoryAllSummaryResponse>("/api/1.4/inventory/allsummary");
-      return toToolResult(data.message_response);
-    }
+  const { customerId } = loadConfig();
+
+  const data = await httpClient.get<InventoryAllSummaryResponse>(
+    "/api/1.4/inventory/allsummary",
+    { customerid: customerId }
+  );
+
+  return toToolResult(data.message_response);
+}
   );
 
   server.registerTool(
@@ -459,12 +466,18 @@ export function registerInventoryTools(server: McpServer): void {
       annotations: READ_ONLY,
     },
     async (args: { resId: number }) => {
-      const data = await httpClient.get<InventoryCompDetailsSummaryResponse>(
-        "/api/1.4/inventory/compdetailssummary",
-        { resid: args.resId }
-      );
-      return toToolResult(data.message_response);
+  const { customerId } = loadConfig();
+
+  const data = await httpClient.get<InventoryCompDetailsSummaryResponse>(
+    "/api/1.4/inventory/compdetailssummary",
+    {
+      customerid: customerId,
+      resid: args.resId
     }
+  );
+
+  return toToolResult(data.message_response);
+}
   );
 
   server.registerTool(

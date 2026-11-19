@@ -691,20 +691,26 @@ interface ApdTaskListResponse {
 
 export function registerPatchTools(server: McpServer): void {
   server.registerTool(
-    "patch_summary",
-    {
-      title: "Patch module summary",
-      description:
-        "Retrieves the patch module summary: installed/missing/applicable patch counts, missing-patch severity " +
-        "breakdown, system health summary, scan summary, APD task summary, and vulnerability DB update status.",
-      inputSchema: {},
-      annotations: READ_ONLY,
-    },
-    async () => {
-      const data = await httpClient.get<PatchSummaryResponse>("/api/1.4/patch/summary");
-      return toToolResult(data.message_response);
-    }
-  );
+  "patch_summary",
+  {
+    title: "Patch module summary",
+    description:
+      "Retrieves the patch module summary: installed/missing/applicable patch counts, missing-patch severity " +
+      "breakdown, system health summary, scan summary, APD task summary, and vulnerability DB update status.",
+    inputSchema: {},
+    annotations: READ_ONLY,
+  },
+  async () => {
+    const { customerId } = loadConfig();
+
+    const data = await httpClient.get<PatchSummaryResponse>(
+      "/api/1.4/patch/summary",
+      { customerid: customerId }
+    );
+
+    return toToolResult(data.message_response);
+  }
+);
 
   server.registerTool(
     "patch_all_patches_list",
@@ -780,8 +786,10 @@ export function registerPatchTools(server: McpServer): void {
       annotations: READ_ONLY,
     },
     async (args: AllSystemsArgs) => {
-      const { defaultPageLimit } = loadConfig();
+	const { defaultPageLimit, customerId } = loadConfig();
+	
       const data = await httpClient.get<AllSystemsResponse>("/api/1.4/patch/allsystems", {
+		  customerid: customerId,
         page: args.page,
         pagelimit: args.pageLimit ?? defaultPageLimit,
         resid: args.resId,
@@ -973,8 +981,9 @@ export function registerPatchTools(server: McpServer): void {
       annotations: READ_ONLY,
     },
     async (args: SystemReportArgs) => {
-      const { defaultPageLimit } = loadConfig();
+  const { defaultPageLimit, customerId } = loadConfig();
       const data = await httpClient.get<SystemReportResponse>("/api/1.4/patch/systemreport", {
+		  customerid: customerId,
         page: args.page,
         pagelimit: args.pageLimit ?? defaultPageLimit,
         resid: args.resId,

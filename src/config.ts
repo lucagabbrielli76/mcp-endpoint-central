@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 export interface Config {
   baseUrl: string;
   apiToken: string;
+  customerId: number;
   caCert?: Buffer;
   defaultPageLimit: number;
   /**
@@ -52,6 +53,11 @@ export function loadConfig(): Config {
 
   const baseUrl = required("ENDPOINT_CENTRAL_BASE_URL").replace(/\/+$/, "");
   const apiToken = required("ENDPOINT_CENTRAL_API_TOKEN");
+  const customerId = Number(required("ENDPOINT_CENTRAL_CUSTOMER_ID"));
+
+if (!Number.isInteger(customerId) || customerId < 1) {
+  throw new Error("ENDPOINT_CENTRAL_CUSTOMER_ID must be a positive integer.");
+}
   const caCert = loadCaCert(process.env.ENDPOINT_CENTRAL_CA_CERT_PATH);
 
   const defaultPageLimit = Number(process.env.ENDPOINT_CENTRAL_DEFAULT_PAGE_LIMIT ?? 50);
@@ -63,6 +69,13 @@ export function loadConfig(): Config {
 
   const enableWriteTools = loadBooleanFlag("ENDPOINT_CENTRAL_ENABLE_WRITE_TOOLS");
 
-  cached = { baseUrl, apiToken, caCert, defaultPageLimit, enableWriteTools };
+  cached = {
+  baseUrl,
+  apiToken,
+  customerId,
+  caCert,
+  defaultPageLimit,
+  enableWriteTools
+};
   return cached;
 }

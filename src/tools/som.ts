@@ -110,9 +110,10 @@ interface SomComputersResponse {
 }
 
 async function somComputersList(args: SomComputersListArgs) {
-  const { defaultPageLimit } = loadConfig();
+  const { defaultPageLimit, customerId } = loadConfig();
 
   const data = await httpClient.get<SomComputersResponse>("/api/1.4/som/computers", {
+    customerid: customerId,
     page: args.page,
     pagelimit: args.pageLimit ?? defaultPageLimit,
     residfilter: args.residFilter,
@@ -188,8 +189,10 @@ export function registerSomTools(server: McpServer): void {
     somComputersList
   );
 
-  server.registerTool(
-    "som_summary",
+      const { customerId } = loadConfig();
+	  
+	server.registerTool(
+		"som_summary",
     {
       title: "SoM summary",
       description:
@@ -199,7 +202,10 @@ export function registerSomTools(server: McpServer): void {
       annotations: READ_ONLY,
     },
     async () => {
-      const data = await httpClient.get<SomSummaryResponse>("/api/1.4/som/summary");
+      const data = await httpClient.get<SomSummaryResponse>(
+        "/api/1.4/som/summary",
+        { customerid: customerId }
+      );
       return toToolResult(data.message_response);
     }
   );
